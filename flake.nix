@@ -37,7 +37,7 @@
             devShells.default = import ./shell.nix self { inherit pkgs; };
 
             # Output package
-            packages.default = pkgs.callPackage ./. { inherit pkgs; };
+            packages.default = pkgs.callPackage ./. { };
           };
       }
     );

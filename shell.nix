@@ -2,7 +2,7 @@ flake:
 { pkgs, ... }:
 let
   # Hostplatform system
-  system = pkgs.hostPlatform.system;
+  system = pkgs.stdenv.hostPlatform.system;
 
   # Production package
   base = flake.packages.${system}.default;
@@ -22,13 +22,18 @@ pkgs.mkShell {
     cargo-watch
 
     # Other packages here
-    # openssl
-    # libressl
+    openssl
+    libressl
+    curl
     # ...
+    stdenv 
+    gcc
+    rustc
+    sqlx-cli
   ];
 
-  # RUST_BACKTRACE = "full";
-  # RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+  RUST_BACKTRACE = "full";
+  RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
   shellHook = ''
     # Extra steps to do while activating development shell

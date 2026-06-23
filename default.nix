@@ -44,15 +44,17 @@ pkgs.rustPlatform.buildRustPackage {
   nativeBuildInputs = with pkgs; [
     # Other compile time dependencies
     # here
-    # pkg-config
-    # openssl
+    pkg-config
+    openssl
+    curl
   ];
 
   # Runtime dependencies which will be shipped
   # with nix package
   buildInputs = with pkgs; [
-    # openssl
-    # libressl
+    openssl
+    libressl
+    curl
   ];
 
   # Set Environment Variables
