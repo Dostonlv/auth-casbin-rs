@@ -1,8 +1,8 @@
 use crate::{
-    db::users::UserRepo,
+    db::notes::NoteRepo,
     entities::{
+        notes::{CreateNote, Note, UpdateNote},
         repository::Repository,
-        users::{CreateUser, User},
     },
     routes::{AppError, AppState, Data},
 };
@@ -16,24 +16,24 @@ use std::sync::Arc;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/", get(get_all).post(create_user))
-        .route("/{id}", get(get_user).put(update_user).delete(delete_user))
+        .route("/", get(get_all).post(create_note))
+        .route("/{id}", get(get_note).put(update_note).delete(delete_note))
 }
 
 #[utoipa::path(
     post,
-    path = "/users",
-    request_body = CreateUser,
+    path = "/notes",
+    request_body = CreateNote,
     responses(
-        (status = 200, description = "User created", body = User),
+        (status = 200, description = "Note created", body = Note),
         (status = 400, description = "Bad request"),
     )
 )]
-pub async fn create_user(
+pub async fn create_note(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateUser>,
-) -> Result<Json<User>, AppError> {
-    let id = UserRepo::create(&state.pool, &payload)
+    Json(payload): Json<CreateNote>,
+) -> Result<Json<Note>, AppError> {
+    let id = NoteRepo::create(&state.pool, &payload)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -42,30 +42,29 @@ pub async fn create_user(
             }),
         })?;
 
-    Ok(Json(User {
+    Ok(Json(Note {
         id,
-        full_name: payload.full_name,
-        email: payload.email,
+        title: payload.title.clone(),
+        description: payload.description.clone(),
         created_at: None,
-        password: None,
-        role: "user".to_owned()
+        user: None,
     }))
 }
 
 #[utoipa::path(
     get,
-    path = "/users/{id}",
-    params(("id" = i64, Path, description = "User ID")),
+    path = "/notes/{id}",
+    params(("id" = i64, Path, description = "Note ID")),
     responses(
-        (status = 200, description = "User found", body = User),
-        (status = 404, description = "User not found"),
+        (status = 200, description = "Note found", body = Note),
+        (status = 404, description = "Note not found"),
     )
 )]
-pub async fn get_user(
+pub async fn get_note(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-) -> Result<Json<User>, AppError> {
-    let user = UserRepo::get_by_id(&state.pool, id)
+) -> Result<Json<Note>, AppError> {
+    let note = NoteRepo::get_by_id(&state.pool, id)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -74,12 +73,12 @@ pub async fn get_user(
             }),
         })?;
 
-    match user {
+    match note {
         Some(s) => Ok(Json(s)),
         None => Err(AppError {
             status_code: StatusCode::NOT_FOUND,
             data: Json(Data {
-                message: String::from("User not found"),
+                message: String::from("Note not found"),
             }),
         }),
     }
@@ -87,13 +86,13 @@ pub async fn get_user(
 
 #[utoipa::path(
     get,
-    path = "/users",
+    path = "/notes",
     responses(
-        (status = 200, description = "List of users", body = Vec<User>),
+        (status = 200, description = "List of notes", body = Vec<Note>),
     )
 )]
-pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User>>, AppError> {
-    let users = UserRepo::get_all(&state.pool)
+pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Note>>, AppError> {
+    let notes = NoteRepo::get_all(&state.pool)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -102,25 +101,25 @@ pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User
             }),
         })?;
 
-    Ok(Json(users))
+    Ok(Json(notes))
 }
 
 #[utoipa::path(
     put,
-    path = "/users/{id}",
-    params(("id" = i64, Path, description = "User ID")),
-    request_body = CreateUser,
+    path = "/notes/{id}",
+    params(("id" = i64, Path, description = "Note ID")),
+    request_body = CreateNote,
     responses(
-        (status = 200, description = "User updated", body = User),
-        (status = 404, description = "User not found"),
+        (status = 200, description = "Note updated", body = Note),
+        (status = 404, description = "Note not found"),
     )
 )]
-pub async fn update_user(
+pub async fn update_note(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Json(payload): Json<CreateUser>,
-) -> Result<Json<User>, AppError> {
-    let updated_id = UserRepo::update(&state.pool, id, &payload)
+    Json(payload): Json<UpdateNote>,
+) -> Result<Json<Note>, AppError> {
+    let updated_id = NoteRepo::update(&state.pool, id, &payload)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -129,30 +128,29 @@ pub async fn update_user(
             }),
         })?;
 
-    Ok(Json(User {
+    Ok(Json(Note {
         id: updated_id,
-        full_name: payload.full_name,
-        email: payload.email,
+        title: payload.title.clone(),
+        description: payload.description.clone(),
         created_at: None,
-        password: None,
-        role: "user".to_string()
+        user: None,
     }))
 }
 
 #[utoipa::path(
     delete,
-    path = "/users/{id}",
-    params(("id" = i64, Path, description = "User ID")),
+    path = "/notes/{id}",
+    params(("id" = i64, Path, description = "Note ID")),
     responses(
-        (status = 200, description = "user deleted", body = i64),
-        (status = 404, description = "User not found"),
+        (status = 200, description = "note deleted", body = i64),
+        (status = 404, description = "note not found"),
     )
 )]
-pub async fn delete_user(
+pub async fn delete_note(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i64>,
 ) -> Result<Json<i64>, AppError> {
-    let deleted_id = UserRepo::delete(&state.pool, id)
+    let deleted_id = NoteRepo::delete(&state.pool, id)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -166,7 +164,7 @@ pub async fn delete_user(
         None => Err(AppError {
             status_code: StatusCode::NOT_FOUND,
             data: Json(Data {
-                message: String::from("User not found"),
+                message: String::from("Note not found"),
             }),
         }),
     }

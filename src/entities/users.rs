@@ -8,6 +8,7 @@ pub struct User {
     pub full_name: String,
     pub email: String,
     pub password: Option<String>,
+    pub role:String,
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 

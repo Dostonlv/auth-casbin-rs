@@ -10,7 +10,7 @@ impl User {
         sqlx::query_as!(
             User,
             r#"
-            SELECT id, full_name, email, password, created_at  FROM users WHERE email = $1
+            SELECT id, full_name, email, password,role, created_at  FROM users WHERE email = $1
         "#,
             email
         )
@@ -50,7 +50,7 @@ impl Repository for UserRepo {
     async fn get_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Self::Model>, Error> {
         sqlx::query_as!(
             User,
-            r#"SELECT id, full_name, email, '' as password,created_at
+            r#"SELECT id, full_name, email, '' as password, role, created_at
             FROM users WHERE id = $1"#,
             id
         )
@@ -61,7 +61,7 @@ impl Repository for UserRepo {
     async fn get_all(pool: &SqlitePool) -> Result<Vec<Self::Model>, Error> {
         sqlx::query_as!(
             User,
-            r#"SELECT id, full_name, email, '' as password,created_at
+            r#"SELECT id, full_name, email, '' as password,role,created_at
             FROM users"#,
         )
         .fetch_all(pool)
