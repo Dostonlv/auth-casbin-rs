@@ -4,8 +4,8 @@ use sqlx::SqlitePool;
 
 use rediscn::RedisAdaptor;
 
-pub mod rediscn;
 pub mod config;
+pub mod rediscn;
 
 pub struct AppState {
     pub pool: SqlitePool,
@@ -25,6 +25,10 @@ impl AppState {
         let redis_client = redis::Client::open(&*config.redis_url)?;
         let redis_conn = redis_client.get_connection()?;
         let redis_adaptor = RedisAdaptor::new(redis_conn);
-        Ok(Self { pool: pool, config, redis_adaptor })
+        Ok(Self {
+            pool: pool,
+            config,
+            redis_adaptor,
+        })
     }
 }
