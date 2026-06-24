@@ -57,7 +57,7 @@ impl Repository for NoteRepo {
                 email: n.email,
                 password: None,
                 created_at: None,
-                role: n.role
+                role: n.role,
             }),
         });
         Ok(note)
@@ -94,7 +94,7 @@ impl Repository for NoteRepo {
                     email: n.email,
                     password: None,
                     created_at: None,
-                    role: n.role
+                    role: n.role,
                 }),
             })
             .collect();

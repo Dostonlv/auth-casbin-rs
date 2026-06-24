@@ -24,6 +24,8 @@ tracing = "0.1.44"
 utoipa = { version = "5", features = ["chrono"] }
 chrono = { version = "0.4", features = ["serde"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
+redis = { version = "1.2.4", features = ["tokio-comp"] }
+md5 = "0.8.0"
 
 [profile.release]
 strip = true

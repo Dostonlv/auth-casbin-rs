@@ -2,11 +2,15 @@ use anyhow::{Context, Ok};
 use config::Config;
 use sqlx::SqlitePool;
 
+use rediscn::RedisAdaptor;
+
+pub mod rediscn;
 pub mod config;
 
 pub struct AppState {
     pub pool: SqlitePool,
     pub config: Config,
+    pub redis_adaptor: RedisAdaptor,
 }
 
 impl AppState {
@@ -18,6 +22,9 @@ impl AppState {
             .run(&pool)
             .await
             .context("migration failed")?;
-        Ok(Self { pool: pool, config })
+        let redis_client = redis::Client::open(&*config.redis_url)?;
+        let redis_conn = redis_client.get_connection()?;
+        let redis_adaptor = RedisAdaptor::new(redis_conn);
+        Ok(Self { pool: pool, config, redis_adaptor })
     }
 }

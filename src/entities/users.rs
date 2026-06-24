@@ -8,7 +8,7 @@ pub struct User {
     pub full_name: String,
     pub email: String,
     pub password: Option<String>,
-    pub role:String,
+    pub role: String,
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
@@ -20,3 +20,20 @@ pub struct CreateUser {
 }
 
 pub type UpdateUser = CreateUser;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Role {
+    User,
+    Admin,
+    Publisher,
+}
+
+impl Role {
+    pub fn check_role(role: &str) -> Result<Self, &'static str> {
+        match role {
+            "user" | "User" => Ok(Role::User),
+            "admin" | "Admin" => Ok(Role::Admin),
+            _ => Err("Unknown role"),
+        }
+    }
+}

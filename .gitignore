@@ -15,4 +15,5 @@
 #/target
 
 .env
-notes.db
+notes.db*
+dump.*

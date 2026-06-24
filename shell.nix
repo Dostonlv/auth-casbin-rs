@@ -30,6 +30,7 @@ pkgs.mkShell {
     gcc
     rustc
     sqlx-cli
+    redis
   ];
 
   RUST_BACKTRACE = "full";

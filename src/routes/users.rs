@@ -48,7 +48,7 @@ pub async fn create_user(
         email: payload.email,
         created_at: None,
         password: None,
-        role: "user".to_owned()
+        role: "user".to_owned(),
     }))
 }
 
@@ -135,7 +135,7 @@ pub async fn update_user(
         email: payload.email,
         created_at: None,
         password: None,
-        role: "user".to_string()
+        role: "user".to_string(),
     }))
 }
 
