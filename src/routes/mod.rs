@@ -6,6 +6,7 @@ use crate::entities::{
     users::{CreateUser, User},
 };
 use axum::{Json, Router, http::StatusCode, response::IntoResponse};
+use axum_cookie::CookieLayer;
 use serde::Serialize;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -36,6 +37,7 @@ pub async fn create_app(pool: Arc<AppState>) -> anyhow::Result<Router> {
     let router = Router::new()
         .nest("/users", users::router())
         .nest("/notes", notes::router())
+        .layer(CookieLayer::default())
         .with_state(pool)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 

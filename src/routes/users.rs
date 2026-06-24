@@ -13,11 +13,9 @@ use argon2::{
     password_hash::{SaltString, rand_core::OsRng},
 };
 use axum::{
-    Json, Router,
-    extract::{Path, State},
-    http::StatusCode,
-    routing::{get, post},
+    Json, Router, extract::{Path, State}, http::{self, StatusCode}, routing::{get, post},
 };
+use axum_cookie::CookieManager;
 use jsonwebtoken::{EncodingKey, Header, encode};
 use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
@@ -27,6 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(get_all).post(create_user))
         .route("/{id}", get(get_user).put(update_user).delete(delete_user))
         .route("/login", post(login))
+        .route("/logout", post(logout))
 }
 
 #[utoipa::path(
@@ -262,4 +261,22 @@ pub async fn login(
         token,
         expire: expiration.unix_timestamp(),
     }))
+}
+
+pub async fn logout(
+    State(state): State<Arc<AppState>>,
+    cookie: CookieManager,
+) -> Result<(), AppError> {
+    if let Some(cookie) = cookie.get("auth_token") {
+        let token = cookie.value();
+        let jwt_expires_time = state.config.jwt_expires_time.parse::<u64>().unwrap();
+        let _ = state
+            .redis_adaptor
+            .add_token_to_black_list(token, jwt_expires_time)
+            .map_err(|_| AppError {
+                status_code: StatusCode::INTERNAL_SERVER_ERROR.into(),
+                data: Json(Data { message: String::from("error while adding token to redis blacklist") }),
+            });
+    }
+    Ok(())
 }
