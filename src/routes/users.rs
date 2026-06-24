@@ -1,23 +1,32 @@
 use crate::{
     db::users::UserRepo,
     entities::{
+        auth::{Claims, Login, Token},
         repository::Repository,
         users::{CreateUser, User},
     },
     routes::{AppError, AppState, Data},
 };
+
+use argon2::{
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::get,
+    routing::{get, post},
 };
+use jsonwebtoken::{EncodingKey, Header, encode};
 use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(get_all).post(create_user))
         .route("/{id}", get(get_user).put(update_user).delete(delete_user))
+        .route("/login", post(login))
 }
 
 #[utoipa::path(
@@ -31,8 +40,15 @@ pub fn router() -> Router<Arc<AppState>> {
 )]
 pub async fn create_user(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateUser>,
+    Json(mut payload): Json<CreateUser>,
 ) -> Result<Json<User>, AppError> {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let pswd = argon2
+        .hash_password(payload.password.to_owned().as_bytes(), &salt)
+        .unwrap()
+        .to_string();
+    payload.password = pswd;
     let id = UserRepo::create(&state.pool, &payload)
         .await
         .map_err(|err| AppError {
@@ -135,7 +151,7 @@ pub async fn update_user(
         email: payload.email,
         created_at: None,
         password: None,
-        role: "user".to_string(),
+        role: "user".to_string(), // use anyhow::Ok;
     }))
 }
 
@@ -170,4 +186,80 @@ pub async fn delete_user(
             }),
         }),
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "/users/login",
+     request_body = Login,
+    responses(
+        (status = 200, description = "token given", body = Token),
+        (status = 404, description = "Error"),
+    )
+)]
+pub async fn login(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<Login>,
+) -> Result<Json<Token>, AppError> {
+    if payload.email.is_empty() && payload.password.is_empty() {
+        return Err(AppError {
+            status_code: StatusCode::BAD_REQUEST.into(),
+            data: Json(Data {
+                message: "email or password is not empty".to_string(),
+            }),
+        });
+    }
+
+    let user_request = User::get_by_email(&state.pool, payload.email.as_str())
+        .await
+        .map_err(|err| AppError {
+            status_code: StatusCode::BAD_REQUEST.into(),
+            data: Json(Data {
+                message: err.to_string(),
+            }),
+        })?;
+
+    let Some(user) = user_request else {
+        return Err(AppError {
+            status_code: StatusCode::NOT_FOUND.into(),
+            data: Json(Data {
+                message: String::from("user not found"),
+            }),
+        });
+    };
+
+    let verify = Argon2::default().verify_password(
+        payload.password.as_bytes(),
+        &PasswordHash::new(user.password.unwrap().as_str()).unwrap(),
+    );
+
+    if verify.is_err() {
+        return Err(AppError {
+            status_code: StatusCode::UNAUTHORIZED.into(),
+            data: Json(Data {
+                message: String::from("password is incorrect"),
+            }),
+        });
+    }
+
+    let exp_time = &state.config.jwt_expires_time.parse::<i64>().unwrap();
+    let expiration = OffsetDateTime::now_utc() + Duration::seconds(*exp_time);
+    let claims = Claims {
+        sub: user.id.to_string(),
+        exp: expiration.unix_timestamp(),
+        iat: OffsetDateTime::now_utc().unix_timestamp(),
+        iss: (&state.config.jwt_issuer).to_string(),
+    };
+    let secret = &state.config.jwt_secret.as_bytes();
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret),
+    )
+    .unwrap();
+
+    Ok(Json(Token {
+        token,
+        expire: expiration.unix_timestamp(),
+    }))
 }

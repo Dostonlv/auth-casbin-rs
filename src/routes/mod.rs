@@ -21,6 +21,7 @@ pub mod users;
         users::get_all,
         users::update_user,
         users::delete_user,
+        users::login,
         notes::create_note,
         notes::get_note,
         notes::get_all,

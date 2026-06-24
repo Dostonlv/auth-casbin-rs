@@ -16,7 +16,7 @@ pub struct User {
 pub struct CreateUser {
     pub full_name: String,
     pub email: String,
-    pub password: Option<String>,
+    pub password: String,
 }
 
 pub type UpdateUser = CreateUser;
