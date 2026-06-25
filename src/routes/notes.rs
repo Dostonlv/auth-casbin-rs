@@ -1,10 +1,10 @@
 use crate::{
     db::notes::NoteRepo,
     entities::{
-        notes::{CreateNote, Note, UpdateNote},
+        notes::{CreateNote, CreateNoteRequest, Note, UpdateNote},
         repository::Repository,
     },
-    routes::{AppError, AppState, Data},
+    routes::{AppError, AppState, Data, auth::AuthUser},
 };
 use axum::{
     Json, Router,
@@ -29,11 +29,19 @@ pub fn router() -> Router<Arc<AppState>> {
         (status = 400, description = "Bad request"),
     )
 )]
+#[axum::debug_handler]
 pub async fn create_note(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateNote>,
+    AuthUser(claims): AuthUser,
+    Json(CreateNoteRequest { title, description }): Json<CreateNoteRequest>,
 ) -> Result<Json<Note>, AppError> {
-    let id = NoteRepo::create(&state.pool, &payload)
+    let note = CreateNote {
+        user_id: claims.sub,
+        title,
+        description,
+    };
+
+    let id = NoteRepo::create(&state.pool, &note)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -44,8 +52,8 @@ pub async fn create_note(
 
     Ok(Json(Note {
         id,
-        title: payload.title.clone(),
-        description: payload.description.clone(),
+        title: note.title,
+        description: note.description,
         created_at: None,
         user: None,
     }))
@@ -62,6 +70,7 @@ pub async fn create_note(
 )]
 pub async fn get_note(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<Note>, AppError> {
     let note = NoteRepo::get_by_id(&state.pool, id)
@@ -91,7 +100,10 @@ pub async fn get_note(
         (status = 200, description = "List of notes", body = Vec<Note>),
     )
 )]
-pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Note>>, AppError> {
+pub async fn get_all(
+    State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
+) -> Result<Json<Vec<Note>>, AppError> {
     let notes = NoteRepo::get_all(&state.pool)
         .await
         .map_err(|err| AppError {
@@ -116,6 +128,7 @@ pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Note
 )]
 pub async fn update_note(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateNote>,
 ) -> Result<Json<Note>, AppError> {
@@ -148,6 +161,7 @@ pub async fn update_note(
 )]
 pub async fn delete_note(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<i64>, AppError> {
     let deleted_id = NoteRepo::delete(&state.pool, id)

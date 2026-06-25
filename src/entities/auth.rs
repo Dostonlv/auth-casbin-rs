@@ -15,8 +15,9 @@ pub struct Login {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,
+    pub sub: i64,
     pub exp: i64,
     pub iat: i64,
     pub iss: String,
+    pub role: String,
 }

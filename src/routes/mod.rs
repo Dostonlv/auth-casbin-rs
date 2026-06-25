@@ -5,12 +5,16 @@ use crate::entities::{
     notes::{CreateNote, Note},
     users::{CreateUser, User},
 };
+use crate::routes::casbin::casbin_mv;
+use axum::middleware::from_fn_with_state;
 use axum::{Json, Router, http::StatusCode, response::IntoResponse};
 use axum_cookie::CookieLayer;
 use serde::Serialize;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+pub mod auth;
+pub mod casbin;
 pub mod notes;
 pub mod users;
 
@@ -38,6 +42,7 @@ pub async fn create_app(pool: Arc<AppState>) -> anyhow::Result<Router> {
         .nest("/users", users::router())
         .nest("/notes", notes::router())
         .layer(CookieLayer::default())
+        .layer(from_fn_with_state(pool.clone(), casbin_mv))
         .with_state(pool)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 

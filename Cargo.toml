@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.102"
 argon2 = { version = "0.5.3", features = ["std"] }
-axum = { version = "0.8.9", features = ["http2"] }
+axum = { version = "0.8.9", features = ["http2", "macros"] }
 dotenvy = "0.15"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
@@ -29,6 +29,10 @@ md5 = "0.8.0"
 time = "0.3.51"
 jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] } 
 axum-cookie = "0.3.0"
+axum-extra = {version = "0.12.6", features = ["typed-header"]}
+casbin = "2.20.0"
+utility-types = "0.0.4"
+sqlx-adapter = { version = "1.8.0", features = ["sqlite"], default-features=false }
 
 [profile.release]
 strip = true

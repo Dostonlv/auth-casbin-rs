@@ -3,9 +3,9 @@ use crate::{
     entities::{
         auth::{Claims, Login, Token},
         repository::Repository,
-        users::{CreateUser, User},
+        users::{CreateUser, UpdateUser, User},
     },
-    routes::{AppError, AppState, Data},
+    routes::{AppError, AppState, Data, auth::AuthUser},
 };
 
 use argon2::{
@@ -13,7 +13,10 @@ use argon2::{
     password_hash::{SaltString, rand_core::OsRng},
 };
 use axum::{
-    Json, Router, extract::{Path, State}, http::{self, StatusCode}, routing::{get, post},
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
+    routing::{get, post},
 };
 use axum_cookie::CookieManager;
 use jsonwebtoken::{EncodingKey, Header, encode};
@@ -37,6 +40,7 @@ pub fn router() -> Router<Arc<AppState>> {
         (status = 400, description = "Bad request"),
     )
 )]
+#[axum::debug_handler]
 pub async fn create_user(
     State(state): State<Arc<AppState>>,
     Json(mut payload): Json<CreateUser>,
@@ -44,10 +48,10 @@ pub async fn create_user(
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     let pswd = argon2
-        .hash_password(payload.password.to_owned().as_bytes(), &salt)
+        .hash_password(payload.password.to_owned().unwrap().as_bytes(), &salt)
         .unwrap()
         .to_string();
-    payload.password = pswd;
+    payload.password = Some(pswd);
     let id = UserRepo::create(&state.pool, &payload)
         .await
         .map_err(|err| AppError {
@@ -78,6 +82,7 @@ pub async fn create_user(
 )]
 pub async fn get_user(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<User>, AppError> {
     let user = UserRepo::get_by_id(&state.pool, id)
@@ -107,7 +112,10 @@ pub async fn get_user(
         (status = 200, description = "List of users", body = Vec<User>),
     )
 )]
-pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User>>, AppError> {
+pub async fn get_all(
+    State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
+) -> Result<Json<Vec<User>>, AppError> {
     let users = UserRepo::get_all(&state.pool)
         .await
         .map_err(|err| AppError {
@@ -124,7 +132,7 @@ pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User
     put,
     path = "/users/{id}",
     params(("id" = i64, Path, description = "User ID")),
-    request_body = CreateUser,
+    request_body = UpdateUser,
     responses(
         (status = 200, description = "User updated", body = User),
         (status = 404, description = "User not found"),
@@ -132,8 +140,9 @@ pub async fn get_all(State(state): State<Arc<AppState>>) -> Result<Json<Vec<User
 )]
 pub async fn update_user(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
-    Json(payload): Json<CreateUser>,
+    Json(payload): Json<UpdateUser>,
 ) -> Result<Json<User>, AppError> {
     let updated_id = UserRepo::update(&state.pool, id, &payload)
         .await
@@ -165,6 +174,7 @@ pub async fn update_user(
 )]
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
+    AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<i64>, AppError> {
     let deleted_id = UserRepo::delete(&state.pool, id)
@@ -244,10 +254,11 @@ pub async fn login(
     let exp_time = &state.config.jwt_expires_time.parse::<i64>().unwrap();
     let expiration = OffsetDateTime::now_utc() + Duration::seconds(*exp_time);
     let claims = Claims {
-        sub: user.id.to_string(),
+        sub: user.id,
         exp: expiration.unix_timestamp(),
         iat: OffsetDateTime::now_utc().unix_timestamp(),
         iss: (&state.config.jwt_issuer).to_string(),
+        role: user.role.to_string(),
     };
     let secret = &state.config.jwt_secret.as_bytes();
     let token = encode(
@@ -275,7 +286,9 @@ pub async fn logout(
             .add_token_to_black_list(token, jwt_expires_time)
             .map_err(|_| AppError {
                 status_code: StatusCode::INTERNAL_SERVER_ERROR.into(),
-                data: Json(Data { message: String::from("error while adding token to redis blacklist") }),
+                data: Json(Data {
+                    message: String::from("error while adding token to redis blacklist"),
+                }),
             });
     }
     Ok(())
