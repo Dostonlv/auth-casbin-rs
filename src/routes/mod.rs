@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::AppState;
+use crate::entities::notes::{Filter, UpdateNote, UpdateNoteSchema};
 use crate::entities::{
     notes::{CreateNote, Note},
     users::{CreateUser, User},
@@ -33,7 +34,7 @@ pub mod users;
         notes::update_note,
         notes::delete_note,
     ),
-    components(schemas(User, CreateUser, Note, CreateNote))
+    components(schemas(User, CreateUser, Note, CreateNote, Filter,UpdateNote))
 )]
 pub struct ApiDoc;
 

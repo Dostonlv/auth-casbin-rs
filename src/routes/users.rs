@@ -116,7 +116,7 @@ pub async fn get_all(
     State(state): State<Arc<AppState>>,
     AuthUser(claims): AuthUser,
 ) -> Result<Json<Vec<User>>, AppError> {
-    let users = UserRepo::get_all(&state.pool)
+    let users = UserRepo::get_all(&state.pool,&() )
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,

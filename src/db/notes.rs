@@ -1,9 +1,7 @@
 use sqlx::{Error, SqlitePool};
 
 use crate::entities::{
-    notes::{CreateNote, Note, UpdateNote},
-    repository::Repository,
-    users::User,
+    notes::{CreateNote, FilterSchema, Note, UpdateNoteSchema}, repository::Repository, users::User,
 };
 
 pub struct NoteRepo;
@@ -11,7 +9,8 @@ pub struct NoteRepo;
 impl Repository for NoteRepo {
     type Model = Note;
     type CreateDto = CreateNote;
-    type UpdateDto = UpdateNote;
+    type UpdateDto = UpdateNoteSchema;
+    type Filter = FilterSchema;
 
     async fn create(pool: &SqlitePool, dto: &Self::CreateDto) -> Result<i64, Error> {
         sqlx::query_scalar!(
@@ -63,7 +62,9 @@ impl Repository for NoteRepo {
         Ok(note)
     }
 
-    async fn get_all(pool: &SqlitePool) -> Result<Vec<Self::Model>, Error> {
+    async fn get_all(pool: &SqlitePool,  _filter: &Self::Filter) -> Result<Vec<Self::Model>, Error> {
+        let offset = (_filter.page-1)* _filter.limit;
+        
         let rows = sqlx::query!(
             r#"
                 SELECT 
@@ -77,7 +78,11 @@ impl Repository for NoteRepo {
                     u.role
                 FROM notes n 
                 INNER JOIN users u ON n.user_id = u.id
+                WHERE n.user_id = $1 LIMIT $2 OFFSET $3
                 "#,
+                _filter.user_id,
+                _filter.limit,
+                offset
         )
         .fetch_all(pool)
         .await?;
@@ -105,12 +110,13 @@ impl Repository for NoteRepo {
         sqlx::query_scalar!(
             r#"UPDATE notes 
         SET title = $1, description = $2, user_id = $3
-        WHERE id = $4 
+        WHERE id = $4 and user_id = $5
         RETURNING id"#,
             dto.title,
             dto.description,
             dto.user_id,
-            id
+            id,
+            dto.user_id
         )
         .fetch_one(pool)
         .await?

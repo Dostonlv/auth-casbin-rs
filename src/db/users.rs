@@ -1,3 +1,4 @@
+use casbin::Filter;
 use sqlx::{Error, SqlitePool};
 
 use crate::entities::{
@@ -34,6 +35,7 @@ impl Repository for UserRepo {
     type Model = User;
     type CreateDto = CreateUser;
     type UpdateDto = UpdateUser;
+    type Filter = ();
 
     async fn create(pool: &SqlitePool, dto: &Self::CreateDto) -> Result<i64, Error> {
         sqlx::query_scalar!(
@@ -58,7 +60,7 @@ impl Repository for UserRepo {
         .await
     }
 
-    async fn get_all(pool: &SqlitePool) -> Result<Vec<Self::Model>, Error> {
+    async fn get_all(pool: &SqlitePool, _filter: &Self::Filter) -> Result<Vec<Self::Model>, Error> {
         sqlx::query_as!(
             User,
             r#"SELECT id, full_name, email, '' as password,role,created_at

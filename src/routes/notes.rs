@@ -1,16 +1,10 @@
 use crate::{
-    db::notes::NoteRepo,
-    entities::{
-        notes::{CreateNote, CreateNoteRequest, Note, UpdateNote},
-        repository::Repository,
-    },
-    routes::{AppError, AppState, Data, auth::AuthUser},
+    db::notes::NoteRepo, entities::{
+        notes::{CreateNote, CreateNoteRequest, Filter, FilterSchema, Note, UpdateNote, UpdateNoteSchema}, repository::Repository,
+    }, routes::{AppError, AppState, Data, auth::AuthUser},
 };
 use axum::{
-    Json, Router,
-    extract::{Path, State},
-    http::StatusCode,
-    routing::get,
+    Json, Router, extract::{Path, Query, State}, http::StatusCode, routing::get,
 };
 use std::sync::Arc;
 
@@ -96,6 +90,7 @@ pub async fn get_note(
 #[utoipa::path(
     get,
     path = "/notes",
+    params(Filter),
     responses(
         (status = 200, description = "List of notes", body = Vec<Note>),
     )
@@ -103,8 +98,12 @@ pub async fn get_note(
 pub async fn get_all(
     State(state): State<Arc<AppState>>,
     AuthUser(claims): AuthUser,
+    Query(filter): Query<Filter>
 ) -> Result<Json<Vec<Note>>, AppError> {
-    let notes = NoteRepo::get_all(&state.pool)
+    let page = filter.page;
+    let limit = filter.limit;
+    let fil:FilterSchema = FilterSchema { page, limit, user_id: claims.sub };
+    let notes = NoteRepo::get_all(&state.pool, &fil)
         .await
         .map_err(|err| AppError {
             status_code: StatusCode::BAD_REQUEST,
@@ -120,7 +119,7 @@ pub async fn get_all(
     put,
     path = "/notes/{id}",
     params(("id" = i64, Path, description = "Note ID")),
-    request_body = CreateNote,
+    request_body = UpdateNote,
     responses(
         (status = 200, description = "Note updated", body = Note),
         (status = 404, description = "Note not found"),
@@ -130,8 +129,9 @@ pub async fn update_note(
     State(state): State<Arc<AppState>>,
     AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
-    Json(payload): Json<UpdateNote>,
+    Json(UpdateNote {title,description }): Json<UpdateNote>,
 ) -> Result<Json<Note>, AppError> {
+    let payload = UpdateNoteSchema { title, description, user_id: claims.sub };
     let updated_id = NoteRepo::update(&state.pool, id, &payload)
         .await
         .map_err(|err| AppError {

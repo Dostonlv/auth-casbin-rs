@@ -26,6 +26,14 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
             .map_err(|_| (StatusCode::UNAUTHORIZED, "token not found"))?;
+       let is_blacklisted = state
+            .redis_adaptor
+            .is_token_in_black_list(bearer.token().to_string())
+            .unwrap_or(true);
+
+        if is_blacklisted {
+            return Err((StatusCode::UNAUTHORIZED, "Token is invalidated"));
+        }
         let data = decode::<Claims>(
             bearer.token(),
             &DecodingKey::from_secret(state.config.jwt_secret.as_bytes()),
