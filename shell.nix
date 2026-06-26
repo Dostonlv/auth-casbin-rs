@@ -31,6 +31,8 @@ pkgs.mkShell {
     rustc
     sqlx-cli
     redis
+    sqlite
+    rlwrap
   ];
 
   RUST_BACKTRACE = "full";

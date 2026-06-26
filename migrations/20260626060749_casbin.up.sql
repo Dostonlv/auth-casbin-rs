@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS casbin_rule (
+   id INTEGER PRIMARY KEY,
+   ptype VARCHAR(12) NOT NULL,
+   v0 VARCHAR(128) NOT NULL,
+   v1 VARCHAR(128) NOT NULL,
+   v2 VARCHAR(128) NOT NULL,
+   v3 VARCHAR(128) NOT NULL,
+   v4 VARCHAR(128) NOT NULL,
+   v5 VARCHAR(128) NOT NULL,
+   CONSTRAINT unique_key_sqlx_adapter UNIQUE(ptype, v0, v1, v2, v3, v4, v5)
+   );

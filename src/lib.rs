@@ -49,7 +49,7 @@ impl AppState {
 }
 
 async fn seed_policies(e: &mut Enforcer) -> anyhow::Result<()> {
-    let policies = vec![
+    let policies = Vec<Vec<&str>>[
         // endpoints
     ];
 
