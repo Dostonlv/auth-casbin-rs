@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use casbin::{CoreApi, DefaultModel, Enforcer, MgmtApi};
 use config::Config;
@@ -35,7 +33,7 @@ impl AppState {
         let redis_conn = redis_client.get_connection()?;
         let redis_adaptor = RedisAdaptor::new(redis_conn);
         let adapter = SqlxAdapter::new(config.database_url.clone(), 8).await?;
-        let model = DefaultModel::from_file("../config/model.conf").await?;
+        let model = DefaultModel::from_file("config/model.conf").await?;
         let mut enforcer = Enforcer::new(model, adapter).await?;
         seed_policies(&mut enforcer).await?;
 
@@ -49,8 +47,8 @@ impl AppState {
 }
 
 async fn seed_policies(e: &mut Enforcer) -> anyhow::Result<()> {
-    let policies = Vec<Vec<&str>>[
-        // endpoints
+    let policies = vec![
+        vec!["user","/notes","GET"]
     ];
 
     for p in policies {

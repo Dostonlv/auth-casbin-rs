@@ -3,13 +3,8 @@ flake:
 let
   # Hostplatform system
   system = pkgs.stdenv.hostPlatform.system;
-
-  # Production package
-  base = flake.packages.${system}.default;
 in
 pkgs.mkShell {
-  inputsFrom = [ base ];
-
   packages = with pkgs; [
     nixd
     statix
