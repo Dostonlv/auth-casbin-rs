@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utility_types::{Omit, Pick};
-use utoipa::{ToSchema,IntoParams};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::entities::users::User;
 
@@ -21,11 +21,11 @@ pub struct NoteSchema {
     pub user_id: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, FromRow, ToSchema,Omit, Pick)]
-pub struct FilterSchema{
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, FromRow, ToSchema, Omit, Pick)]
+pub struct FilterSchema {
     pub page: i64,
     pub limit: i64,
-    pub user_id:i64
+    pub user_id: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams, PartialEq, Clone)]

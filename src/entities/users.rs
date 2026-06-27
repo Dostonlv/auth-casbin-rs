@@ -17,6 +17,21 @@ pub struct User {
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
+impl super::Validate for CreateUser {
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.full_name.trim().is_empty() {
+            return Err("full_name must not be empty");
+        }
+        if !super::is_valid_email(&self.email) {
+            return Err("invalid email address");
+        }
+        if self.password.as_deref().unwrap_or("").len() < 6 {
+            return Err("password must be at least 6 characters");
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Role {
     User,

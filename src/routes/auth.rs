@@ -26,7 +26,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
             .map_err(|_| (StatusCode::UNAUTHORIZED, "token not found"))?;
-       let is_blacklisted = state
+        let is_blacklisted = state
             .redis_adaptor
             .is_token_in_black_list(bearer.token().to_string())
             .unwrap_or(true);

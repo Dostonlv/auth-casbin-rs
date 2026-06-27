@@ -48,7 +48,16 @@ impl AppState {
 
 async fn seed_policies(e: &mut Enforcer) -> anyhow::Result<()> {
     let policies = vec![
-        vec!["user","/notes","GET"]
+        vec!["user", "/notes", "GET"],
+        vec!["user", "/notes", "POST"],
+        vec!["user", "/notes/:id", "GET"],
+        vec!["user", "/notes/:id", "PUT"],
+        vec!["user", "/notes/:id", "DELETE"],
+        vec!["user", "/users/:id", "GET"],
+        vec!["user", "/users/:id", "PUT"],
+        vec!["user", "/users/logout", "POST"],
+        vec!["admin", "/users", "GET"],
+        vec!["admin", "/users/:id", "DELETE"],
     ];
 
     for p in policies {
@@ -56,6 +65,11 @@ async fn seed_policies(e: &mut Enforcer) -> anyhow::Result<()> {
         if !e.has_policy(p.clone()) {
             e.add_policy(p).await?;
         }
+    }
+
+    let admin_inherits_user = vec!["admin".to_string(), "user".to_string()];
+    if !e.has_grouping_policy(admin_inherits_user.clone()) {
+        e.add_grouping_policy(admin_inherits_user).await?;
     }
 
     Ok(())

@@ -1,10 +1,17 @@
 use crate::{
-    db::notes::NoteRepo, entities::{
-        notes::{CreateNote, CreateNoteRequest, Filter, FilterSchema, Note, UpdateNote, UpdateNoteSchema}, repository::Repository,
-    }, routes::{AppError, AppState, Data, auth::AuthUser},
+    db::notes::NoteRepo,
+    entities::{
+        notes::{
+            CreateNote, CreateNoteRequest, Filter, FilterSchema, Note, UpdateNote, UpdateNoteSchema,
+        },
+        repository::Repository,
+    },
+    routes::{AppError, AppState, auth::AuthUser},
 };
 use axum::{
-    Json, Router, extract::{Path, Query, State}, http::StatusCode, routing::get,
+    Json, Router,
+    extract::{Path, Query, State},
+    routing::get,
 };
 use std::sync::Arc;
 
@@ -37,12 +44,7 @@ pub async fn create_note(
 
     let id = NoteRepo::create(&state.pool, &note)
         .await
-        .map_err(|err| AppError {
-            status_code: StatusCode::BAD_REQUEST,
-            data: Json(Data {
-                message: format!("{:?}", err),
-            }),
-        })?;
+        .map_err(|e| AppError::bad_request(e.to_string()))?;
 
     Ok(Json(Note {
         id,
@@ -67,24 +69,11 @@ pub async fn get_note(
     AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<Note>, AppError> {
-    let note = NoteRepo::get_by_id(&state.pool, id)
+    NoteRepo::get_by_owner(&state.pool, id, claims.sub)
         .await
-        .map_err(|err| AppError {
-            status_code: StatusCode::BAD_REQUEST,
-            data: Json(Data {
-                message: format!("{:?}", err),
-            }),
-        })?;
-
-    match note {
-        Some(s) => Ok(Json(s)),
-        None => Err(AppError {
-            status_code: StatusCode::NOT_FOUND,
-            data: Json(Data {
-                message: String::from("Note not found"),
-            }),
-        }),
-    }
+        .map_err(|e| AppError::bad_request(e.to_string()))?
+        .map(Json)
+        .ok_or_else(|| AppError::not_found("note not found"))
 }
 
 #[utoipa::path(
@@ -98,21 +87,18 @@ pub async fn get_note(
 pub async fn get_all(
     State(state): State<Arc<AppState>>,
     AuthUser(claims): AuthUser,
-    Query(filter): Query<Filter>
+    Query(filter): Query<Filter>,
 ) -> Result<Json<Vec<Note>>, AppError> {
-    let page = filter.page;
-    let limit = filter.limit;
-    let fil:FilterSchema = FilterSchema { page, limit, user_id: claims.sub };
-    let notes = NoteRepo::get_all(&state.pool, &fil)
-        .await
-        .map_err(|err| AppError {
-            status_code: StatusCode::BAD_REQUEST,
-            data: Json(Data {
-                message: format!("{:?}", err),
-            }),
-        })?;
+    let filter = FilterSchema {
+        page: filter.page,
+        limit: filter.limit,
+        user_id: claims.sub,
+    };
 
-    Ok(Json(notes))
+    NoteRepo::get_all(&state.pool, &filter)
+        .await
+        .map(Json)
+        .map_err(|e| AppError::bad_request(e.to_string()))
 }
 
 #[utoipa::path(
@@ -129,22 +115,22 @@ pub async fn update_note(
     State(state): State<Arc<AppState>>,
     AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
-    Json(UpdateNote {title,description }): Json<UpdateNote>,
+    Json(UpdateNote { title, description }): Json<UpdateNote>,
 ) -> Result<Json<Note>, AppError> {
-    let payload = UpdateNoteSchema { title, description, user_id: claims.sub };
+    let payload = UpdateNoteSchema {
+        title,
+        description,
+        user_id: claims.sub,
+    };
+
     let updated_id = NoteRepo::update(&state.pool, id, &payload)
         .await
-        .map_err(|err| AppError {
-            status_code: StatusCode::BAD_REQUEST,
-            data: Json(Data {
-                message: format!("{:?}", err),
-            }),
-        })?;
+        .map_err(|e| AppError::bad_request(e.to_string()))?;
 
     Ok(Json(Note {
         id: updated_id,
-        title: payload.title.clone(),
-        description: payload.description.clone(),
+        title: payload.title,
+        description: payload.description,
         created_at: None,
         user: None,
     }))
@@ -155,8 +141,8 @@ pub async fn update_note(
     path = "/notes/{id}",
     params(("id" = i64, Path, description = "Note ID")),
     responses(
-        (status = 200, description = "note deleted", body = i64),
-        (status = 404, description = "note not found"),
+        (status = 200, description = "Note deleted", body = i64),
+        (status = 404, description = "Note not found"),
     )
 )]
 pub async fn delete_note(
@@ -164,22 +150,9 @@ pub async fn delete_note(
     AuthUser(claims): AuthUser,
     Path(id): Path<i64>,
 ) -> Result<Json<i64>, AppError> {
-    let deleted_id = NoteRepo::delete(&state.pool, id)
+    NoteRepo::delete_owned(&state.pool, id, claims.sub)
         .await
-        .map_err(|err| AppError {
-            status_code: StatusCode::BAD_REQUEST,
-            data: Json(Data {
-                message: format!("{:?}", err),
-            }),
-        })?;
-
-    match deleted_id {
-        Some(id) => Ok(Json(id)),
-        None => Err(AppError {
-            status_code: StatusCode::NOT_FOUND,
-            data: Json(Data {
-                message: String::from("Note not found"),
-            }),
-        }),
-    }
+        .map_err(|e| AppError::bad_request(e.to_string()))?
+        .map(Json)
+        .ok_or_else(|| AppError::not_found("note not found"))
 }

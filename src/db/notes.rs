@@ -1,7 +1,9 @@
 use sqlx::{Error, SqlitePool};
 
 use crate::entities::{
-    notes::{CreateNote, FilterSchema, Note, UpdateNoteSchema}, repository::Repository, users::User,
+    notes::{CreateNote, FilterSchema, Note, UpdateNoteSchema},
+    repository::Repository,
+    users::User,
 };
 
 pub struct NoteRepo;
@@ -62,9 +64,9 @@ impl Repository for NoteRepo {
         Ok(note)
     }
 
-    async fn get_all(pool: &SqlitePool,  _filter: &Self::Filter) -> Result<Vec<Self::Model>, Error> {
-        let offset = (_filter.page-1)* _filter.limit;
-        
+    async fn get_all(pool: &SqlitePool, _filter: &Self::Filter) -> Result<Vec<Self::Model>, Error> {
+        let offset = (_filter.page - 1) * _filter.limit;
+
         let rows = sqlx::query!(
             r#"
                 SELECT 
@@ -80,9 +82,9 @@ impl Repository for NoteRepo {
                 INNER JOIN users u ON n.user_id = u.id
                 WHERE n.user_id = $1 LIMIT $2 OFFSET $3
                 "#,
-                _filter.user_id,
-                _filter.limit,
-                offset
+            _filter.user_id,
+            _filter.limit,
+            offset
         )
         .fetch_all(pool)
         .await?;
@@ -127,5 +129,53 @@ impl Repository for NoteRepo {
         sqlx::query_scalar!(r#"DELETE FROM notes WHERE id = $1 RETURNING id"#, id)
             .fetch_optional(pool)
             .await
+    }
+}
+
+impl NoteRepo {
+    pub async fn get_by_owner(
+        pool: &SqlitePool,
+        id: i64,
+        user_id: i64,
+    ) -> Result<Option<Note>, Error> {
+        let row = sqlx::query!(
+            r#"SELECT n.id, n.title, n.description, n.created_at,
+                      u.id as user_id, u.full_name, u.email, u.role
+               FROM notes n INNER JOIN users u ON n.user_id = u.id
+               WHERE n.id = $1 AND n.user_id = $2"#,
+            id,
+            user_id
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row.map(|n| Note {
+            id: n.id,
+            title: n.title,
+            description: n.description,
+            created_at: n.created_at,
+            user: Some(User {
+                id: n.user_id,
+                full_name: n.full_name,
+                email: n.email,
+                password: None,
+                created_at: None,
+                role: n.role,
+            }),
+        }))
+    }
+
+    pub async fn delete_owned(
+        pool: &SqlitePool,
+        id: i64,
+        user_id: i64,
+    ) -> Result<Option<i64>, Error> {
+        sqlx::query_scalar!(
+            r#"DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING id"#,
+            id,
+            user_id
+        )
+        .fetch_optional(pool)
+        .await
     }
 }
